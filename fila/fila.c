@@ -51,35 +51,46 @@ void insereFila(int prioridade, pid_t pid){
 	}
 	else{
 		No *paux, *paux2;
+		int flagMudou;
 		paux = pFila->primeiro;
 		paux2 = NULL;
+		flagMudou = 0;
 		while(paux != NULL){
 			if(novo->prioridade < paux->prioridade){
 				if(paux2 == NULL){
+					novo->prox = pFila->primeiro;
 					pFila->primeiro = novo;
+					flagMudou = 1;
+					break;
 				}
 				else {
 					novo->prox = paux;
+					paux2->prox = novo;
+					flagMudou = 1;
 				}
 			}
 			paux2 = paux;
 			paux = paux->prox;
+		}
+		if(flagMudou == 0){
+			novo->prox = NULL;
+			paux2->prox = novo;
 		}
 	}
 	pFila->contador = pFila->contador + 1;
 }
 
 pid_t retiraPrimeiro(void){
-	No *paux;
-	pid_t primeiro;
-	primeiro = pFila->primeiro->processo;
-	paux = pFila->primeiro;
+	No *primeiro;
+	pid_t pid;
+	if(pFila == NULL) return 0;
+	if(pFila->primeiro == NULL) return 0;
+	primeiro = pFila->primeiro;
+	pid = primeiro->processo;
 	pFila->primeiro = pFila->primeiro->prox;
-	free(paux);
-
-	return primeiro;
-
-
+	free(primeiro);
+	pFila->contador--;
+	return pid;
 }
 
 void esvaziaFila(void){
@@ -88,10 +99,29 @@ void esvaziaFila(void){
 
 #ifdef DEBUG
 int main(void){
-	insereFila(10, 0);
-	insereFila(20, 1);
-	insereFila(1, 2);
+	insereFila(10, 1);
+	insereFila(20, 2);
+	insereFila(30, 3);
+	insereFila(25, 99);
 	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	insereFila(30, 3);
+	insereFila(25, 99);
+	insereFila(20, 2);
+	insereFila(10, 1);
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+	printf("Retira %d\n", retiraPrimeiro());
+
+
+
+
+
 }
 #endif	
 

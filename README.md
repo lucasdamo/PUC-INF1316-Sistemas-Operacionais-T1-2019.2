@@ -5,5 +5,3 @@
 Luiz Fernando Bessa Seibel
 ### Alunos
 Lucas Rebello Damo
-
-Luiza Del Negro Ciuffo Fernandes

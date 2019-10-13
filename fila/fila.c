@@ -14,23 +14,22 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include 'fila.h'
+#include "fila.h"
 #define DEBUG 1
 
 
-typedef struct no {
+struct no {
 	pid_t processo;
 	int prioridade;
 	struct no * prox;
-}
-
+};
 struct fila {
-	No * primeiro;
+	struct no * primeiro;
 	int contador;
+};
 
-}
 
-Fila *pFila = NULL;
+Fila *pFila;
 
 void inicializaFila(void){
 	pFila = malloc(sizeof(Fila));

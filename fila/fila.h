@@ -75,4 +75,4 @@ pid_t retiraPrimeiro(void);
 *		- A fila não existe mais
 *
 ***********************************************************************/
-void esvaziaFila(void)
+void esvaziaFila(void);

@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include 'fila.h'
 #define DEBUG 1
 
 
@@ -21,13 +22,13 @@ typedef struct no {
 	pid_t processo;
 	int prioridade;
 	struct no * prox;
-} No;
+}
 
-typedef struct fila {
+struct fila {
 	No * primeiro;
 	int contador;
 
-} Fila;
+}
 
 Fila *pFila = NULL;
 
@@ -94,6 +95,7 @@ pid_t retiraPrimeiro(void){
 
 void esvaziaFila(void){
 	free(pFila);
+	pFila = NULL;
 }
 
 #ifdef DEBUG

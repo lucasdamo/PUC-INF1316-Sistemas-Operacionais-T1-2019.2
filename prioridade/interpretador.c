@@ -78,7 +78,7 @@ void parentHandler(FILE *fp){
 *	Descrição: Ponto de entrada do programa
 *
 *	Assertivas De Entrada:	
-*		-Existe um arquivo chamado exec.txt na mesma pasta do programa, contendo os comandos
+*		- Existe um arquivo chamado exec.txt na mesma pasta do programa, contendo os comandos
 *
 ***********************************************************************/
 int main(int argc, char *argv[]){

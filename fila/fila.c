@@ -14,12 +14,19 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
 #include "fila.h"
 #define DEBUG 1
 
+union cmdpid {
+	pid_t processo;
+	char * comando;
+};
+
 
 struct no {
-	pid_t processo;
+	Cmdpid * cp;
+	int tipoCmdPid; // 0 Se for comando e 1 se for Pid
 	int prioridade;
 	struct no * prox;
 };
@@ -37,10 +44,10 @@ void inicializaFila(void){
 	pFila->contador = 0;
 }
 
-
-void insereFila(int prioridade, pid_t pid){
+static void insereFila(int prioridade, Cmdpid * cp, int tipocp){
 	No * novo = (No *) malloc(sizeof(No));	
-	novo->processo = pid;
+	novo->cp = cp;
+	novo->tipoCmdPid = tipocp;
 	novo->prioridade = prioridade;
 	if(pFila == NULL) inicializaFila();
 	
@@ -79,17 +86,40 @@ void insereFila(int prioridade, pid_t pid){
 	pFila->contador = pFila->contador + 1;
 }
 
-pid_t retiraPrimeiro(void){
+void insereFilaCmd(int prioridade, char * comando){
+	Cmdpid * cp;
+	cp = (Cmdpid *)malloc(sizeof(Cmdpid));
+	strcpy(cp->comando, comando);
+	insereFila(prioridade, cp, 0);
+}
+void insereFilaPid(int prioridade, pid_t pid){
+	Cmdpid * cp;
+	cp = (Cmdpid *)malloc(sizeof(Cmdpid));
+	cp->processo = pid;
+	insereFila(prioridade, cp, 1);
+}
+
+
+int retiraPrimeiro(char * comando, pid_t * pid){
 	No *primeiro;
-	pid_t pid;
-	if(pFila == NULL) return 0;
-	if(pFila->primeiro == NULL) return 0;
+	Cmdpid * cp;
+	int tipo;
+	if(pFila == NULL) return -1;
+	if(pFila->primeiro == NULL) return -1;
 	primeiro = pFila->primeiro;
-	pid = primeiro->processo;
+	cp = primeiro->cp;
+	tipo = primeiro->tipoCmdPid;
 	pFila->primeiro = pFila->primeiro->prox;
 	free(primeiro);
 	pFila->contador--;
-	return pid;
+	if(tipo == 0){
+		strcpy(comando, cp->comando);
+		return 0;
+	}
+	else{
+		*pid = cp->processo;
+		return 1;
+	}
 }
 
 void esvaziaFila(void){
@@ -99,24 +129,36 @@ void esvaziaFila(void){
 
 #ifdef DEBUG
 int main(void){
-	insereFila(10, 1);
-	insereFila(20, 2);
-	insereFila(30, 3);
-	insereFila(25, 99);
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	insereFila(30, 3);
-	insereFila(25, 99);
-	insereFila(20, 2);
-	insereFila(10, 1);
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
-	printf("Retira %d\n", retiraPrimeiro());
+	char bufferComando[255];
+	pid_t bufferPid;
+	insereFilaPid(10, 1);
+	insereFilaPid(20, 2);
+	insereFilaPid(30, 3);
+	insereFilaPid(25, 99);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	insereFilaPid(30, 3);
+	insereFilaPid(25, 99);
+	insereFilaPid(20, 2);
+	insereFilaPid(10, 1);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %d\n", bufferPid);
 
 
 

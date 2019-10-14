@@ -7,6 +7,7 @@
 *
 *  Histórico de evolução:
 *     Versão	Data		Observações
+*	  2			13/10/2019	Adicionado suporte a comandos além de PID
 *     1			05/10/2019	Versão inicial
 *
 ***************************************************************************/
@@ -88,8 +89,11 @@ static void insereFila(int prioridade, Cmdpid * cp, int tipocp){
 
 void insereFilaCmd(int prioridade, char * comando){
 	Cmdpid * cp;
+	char * cmm;
 	cp = (Cmdpid *)malloc(sizeof(Cmdpid));
-	strcpy(cp->comando, comando);
+	cmm = (char *)malloc(255 * sizeof(char));
+	strcpy(cmm, comando);
+	cp->comando = cmm;
 	insereFila(prioridade, cp, 0);
 }
 void insereFilaPid(int prioridade, pid_t pid){
@@ -159,6 +163,19 @@ int main(void){
 	printf("Retira %d\n", bufferPid);
 	retiraPrimeiro(bufferComando, &bufferPid);
 	printf("Retira %d\n", bufferPid);
+	insereFilaCmd(10, "Testando comando1");
+	insereFilaCmd(30, "Testando comando2");
+	insereFilaCmd(25, "Testando comando3");
+	insereFilaCmd(20, "Testando comando4");
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %s\n", bufferComando);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %s\n", bufferComando);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %s\n", bufferComando);
+	retiraPrimeiro(bufferComando, &bufferPid);
+	printf("Retira %s\n", bufferComando);
+
 
 
 

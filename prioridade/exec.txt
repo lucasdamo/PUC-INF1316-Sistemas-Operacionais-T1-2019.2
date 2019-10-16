@@ -1,2 +1,2 @@
-Run teste PR=1
-Run testa PR=2
+Run ls PR=1
+Run ps PR=2

@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "fila.h"
-#define DEBUG 1
+#define DEBUG 0
 
 union cmdpid {
 	pid_t processo;
@@ -104,7 +104,7 @@ void insereFilaPid(int prioridade, pid_t pid){
 }
 
 
-int retiraPrimeiro(char * comando, pid_t * pid){
+int retiraPrimeiro(char * comando, pid_t * pid, int * prioridade){
 	No *primeiro;
 	Cmdpid * cp;
 	int tipo;
@@ -113,6 +113,7 @@ int retiraPrimeiro(char * comando, pid_t * pid){
 	primeiro = pFila->primeiro;
 	cp = primeiro->cp;
 	tipo = primeiro->tipoCmdPid;
+	*prioridade = primeiro->prioridade;
 	pFila->primeiro = pFila->primeiro->prox;
 	free(primeiro);
 	pFila->contador--;
@@ -175,12 +176,7 @@ int main(void){
 	printf("Retira %s\n", bufferComando);
 	retiraPrimeiro(bufferComando, &bufferPid);
 	printf("Retira %s\n", bufferComando);
-
-
-
-
-
-
+	return 0;
 }
 #endif	
 

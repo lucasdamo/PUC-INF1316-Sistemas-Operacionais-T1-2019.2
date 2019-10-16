@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/wait.h>
 #include "../fila/fila.h"
 #define DEBUG 1
 #define NUM_PALAVRAS_ESPERADO 3 // Numero de palavras esperado em cada linha do arquivo txt inputado
@@ -69,20 +70,52 @@ void childHandler(){
 		printf("Processo filho iniciado com pid %d\n", getpid());
 	#endif
 	Comando * buff;
-	int nBytes, i;
-
+	int nBytes, i, flagFila, flagFork, status;
+	int prioridadeBuffer;
+	pid_t pidBuffer;
+	char cmdBuffer[255];
+	inicializaFila();
 	buff = (Comando *)malloc(sizeof(Comando));
-
-	while( ( nBytes = read(p[0], buff, sizeof(Comando)) ) != 0 ){
-		#ifdef DEBUG
+	while(TRUE){
+		while( ( nBytes = read(p[0], buff, sizeof(Comando)) ) != 0 ){
+			#ifdef DEBUG
 			printf("Comando %s recebido com prioridade %d\n", buff->com, buff->prioridade);
-		#endif
+			#endif
+			// Insere na fila
+			insereFilaCmd(buff->prioridade, buff->com);
+		}
+		// Retira primeiro da fila e espera
+		flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer, &prioridadeBuffer);
+		if(flagFila == 0){
+			//Comando
+			#ifdef DEBUG
+			printf("Comando %s recebido com prioridade %d\n", cmdBuffer, prioridadeBuffer);
+			#endif
+			flagFork = fork();
+			if(flagFork == 0){
+				// exec
+				char *args[]={cmdBuffer, NULL}; 
+				execvp(cmdBuffer, args);
+				#ifdef DEBUG
+				printf("execvp(%s, args)\n", cmdBuffer);
+				#endif
+			}
+			else waitpid(flagFork, &status, 0);
+		}
+		else if(flagFila == 1){
+			//PID
+			#ifdef DEBUG
+			printf("Pid %d recebido com prioridade %d\n", pidBuffer, prioridadeBuffer);
+			#endif
+			// Não é esperado receber um PID. Fila de prioridade deverá esperar a execução terminar 
+			// TODO Consultar professor se ao receber uma mensagem com processo superior deve-se interromper o processo
+			fprintf(stderr, "Não é esperado obter um PID");
+			exit(EXIT_FAILURE);	
+		}
+		else {
+			break;
+		}
 	}
-	sleep(5);
-	for(i=0; i<1000; i++){}
-	
-	
-
 }
 
 void parentHandler(FILE *fp){

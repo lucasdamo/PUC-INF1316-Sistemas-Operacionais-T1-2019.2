@@ -73,6 +73,8 @@ void insereFilaPid(int prioridade, pid_t pid);
 *		caso o nó contenha um comando
 *		- Pid: Ponteiro para uma região do tipo pid_t onde será arma-
 *		zenado caso o nó contenha um número de processo
+*		- Prioridade: Ponteiro para uma região do tipo int onde será
+*		armazenado a prioridade do nó retirado
 *
 *	Retorno: 
 *		- 0, caso o nó contenha comando
@@ -86,7 +88,7 @@ void insereFilaPid(int prioridade, pid_t pid);
 *		- A fila possui um nó a menos
 *
 ***********************************************************************/
-int retiraPrimeiro(char * comando, pid_t * pid);
+int retiraPrimeiro(char * comando, pid_t * pid, int * prioridade);
 
 /***********************************************************************
 *

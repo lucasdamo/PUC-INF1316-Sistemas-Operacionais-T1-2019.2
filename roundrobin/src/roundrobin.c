@@ -1,18 +1,4 @@
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/shm.h>
-#include <fcntl.h>
-
-
-#define fatia 1
-
-typedef struct processos Processos;
+#include "roundrobin.h"
 
 struct processos{
 	int pid;
@@ -29,14 +15,20 @@ int main(int argc, char* argv[]) {
 
 	int i,j=0;
 	int indice;
-
+	FILE* entrada;
+	FILE* saida;
 
 	printf("Executando o escalonador round-robin: \n");
-	
+	// entrada = fopen("/Users/luiza.fernandes/Luiza/Projects/PUC-INF1316-Sistemas-Operacionais-T1-2019.2/roundrobin/entradaroundrobin.txt", "r");
+	// saida = fopen("/Users/luiza.fernandes/Luiza/Projects/PUC-INF1316-Sistemas-Operacionais-T1-2019.2/roundrobin/saidaroundrobin.txt", "w");
+
+/*Verifica quantos programas são, coloca eles em ordem*/
 	printf("Criando vetor de processos: \n");
-	VetorDeProcessos();
+	VetorDeProcessos(argv[2]);
+	GerenciaOutput();
 	RoundRobin();
 
+	// fclose(entrada);
 	// fclose(saida);
 
 	return 0;
@@ -44,16 +36,12 @@ int main(int argc, char* argv[]) {
 }
 
 
-void VetorDeProcessos( ){
-
-	FILE* arq = fopen("/Users/luiza.fernandes/Luiza/Projects/PUC-INF1316-Sistemas-Operacionais-T1-2019.2/roundrobin/entradaroundrobin.txt", "r");
-	// saida = fopen("/Users/luiza.fernandes/Luiza/Projects/PUC-INF1316-Sistemas-Operacionais-T1-2019.2/roundrobin/saidaroundrobin.txt", "w");
-
+void VetorDeProcessos( char* file){
 	int i = 0;
 	char execCommand[4];
 	char program[50];
 
-
+	FILE * arq = fopen(file,"r");
 
 	if(arq==NULL) {
 		printf("ERRO AO ABRIR O ARQUIVO!");
@@ -75,7 +63,12 @@ void VetorDeProcessos( ){
 	
 }
 
+void GerenciaOutput(void){
+	int output;
+	char nome[50];
 
+	strcpy(nome,"saidaroundrobin.txt");
+}
 
 void RoundRobin(){
 	int i,j=0;
@@ -97,7 +90,7 @@ void RoundRobin(){
 			}
 		}
 		else{
-			if(p->status!=2){
+			if(p->status==2){
 				int status;
 				int wpid=waitpid(p->pid,&status,WNOHANG);//wnohang nao deixa que checar o filho suspenda quem o chamou 
 				printf("Executando: %s \n",p->nome);
@@ -122,7 +115,7 @@ void RoundRobin(){
 }
 
 
-void InitWaitInMemory(){
+void InitWaitInMemory(void){
 	int segmento;
 	int i;
 	int id = 3333;
@@ -133,7 +126,7 @@ void InitWaitInMemory(){
 	}
 }
 
-void AnalisaProcessosEmEspera(){
+void AnalisaProcessosEmEspera(void){
 	int i;
 	for(i = 0;i<10;i++){
 		if(waitingmemory[i]>0)
@@ -164,7 +157,7 @@ void remProcessoEmEspera(int pid){
 	}
 }
 
-void AnalisaVetorDeProcessos(){
+void AnalisaVetorDeProcessos(void){
 	int i;
 	printf("Processos: :\n");
 	for(i = 0;i<num_processos;i++){
@@ -172,7 +165,7 @@ void AnalisaVetorDeProcessos(){
 	}
 }
 
-void VerProcessosFinalizados(){
+void VerProcessosFinalizados(void){
 	int i;
 	if(processos_finalizados!=0){
 		printf("Processos Finalizados: \n");
@@ -183,7 +176,7 @@ void VerProcessosFinalizados(){
 		printf("Nenhum processo terminou ainda \n");
 }
 
-void VerProcessosProntos(){
+void VerProcessosProntos(void){
 	int i;
 	if(processos_finalizados!=num_processos){
 		printf("Processos Prontos\n");
@@ -193,7 +186,7 @@ void VerProcessosProntos(){
 		}
 	}
 }
-void VerProcessosEmEspera(){
+void VerProcessosEmEspera(void){
 	int i;
 	int espera = 0;
 	if(processos_finalizados!=num_processos){

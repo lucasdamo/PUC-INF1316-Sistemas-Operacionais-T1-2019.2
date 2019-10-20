@@ -7,6 +7,7 @@
 *
 *  Histórico de evolução:
 *     Versão	Data		Observações
+*	  2			19/10/2019	Escalonador permite preempção	
 *     1			05/10/2019	Versão inicial
 *
 ***************************************************************************/
@@ -16,6 +17,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/wait.h>
 #include "../fila/fila.h"
 #define DEBUG 1
@@ -28,6 +31,7 @@ typedef struct comando {
 } Comando;
 
 int p[2];
+pid_t executando;
 
 
 void interpretaComandos(char * linha){
@@ -62,63 +66,131 @@ void interpretaComandos(char * linha){
 
 }
 
+void signusr1_handler(int sig){
+	printf("Signal received %d\n", sig);
+	kill(getpid(), SIGCONT);
+	executando = 0;
+}
 
+pid_t iniciaNovoProcesso(char * cmd){
+	int fFork, msgid;
+	key_t key;
+	key = ftok("novoproc", 65); 
+	msgid = msgget(key, 0666 | IPC_CREAT); 
+	printf("getpid = %d\n", getpid());
+	fFork = fork();
+	struct msg_buffer{
+		long mtype;
+		pid_t msg;
+	} message;
+	if(fFork == 0){
+		int fFork2;
+		pid_t paiPid = getppid();
+		fFork2 = fork();
+		if(fFork2 == 0){
+			int a;
+			printf("Execl pid %d\n", getpid());
+			a = execl(cmd, cmd, "", "", NULL);
+			fprintf(stderr, "Não foi possivel executar o programa %s\n", cmd);
+			exit(EXIT_FAILURE);
+		}
+		else{
+			int status;
+			message.msg = fFork2;
+			message.mtype = 1;
+			printf("Waiter pid = %d\n", getpid());
+			printf("Get ppid = %d\n", getppid());
+			printf("Waiting for %d\n", fFork);
+			printf("ESCREVENDO FFORK2 %d!\n", fFork2);
+			msgsnd(msgid, &message, sizeof(message),0);
+			//kill(getppid(), SIGCONT);
+			waitpid(fFork, &status, 0);
+			if(WIFEXITED(status)){
+				printf("EXITED!! %d paipid = %d\n", WEXITSTATUS(status), paiPid);
+				kill(paiPid, SIGUSR1);
+				printf("SIGCONT + SIGUSR ENVIADOS PARA %d\n", paiPid);
+			}
+			printf("MORRE\n");
+			kill(getpid(), SIGTERM);
+		}
+	}
+	else {
+		pid_t forkBuff;
+		//kill(getpid(), SIGSTOP);
+		msgrcv(msgid, &message, sizeof(message), 1, 0);
+		printf("fFork = %d\n", message.msg);
+		return message.msg;
+	}
+}
 
+void resumeProcesso(pid_t pid){
+	kill(pid, SIGCONT);
+}
+
+void pausaProcesso(pid_t pid){
+	kill(pid, SIGSTOP);
+}
 
 void childHandler(){
-	#ifdef DEBUG
-		printf("Processo filho iniciado com pid %d\n", getpid());
-	#endif
 	Comando * buff;
-	int nBytes, i, flagFila, flagFork, status;
+	int nBytes, i, flagFila, flagFork, status, prioridadeRodando;
 	int prioridadeBuffer;
 	pid_t pidBuffer;
 	char cmdBuffer[255];
 	inicializaFila();
 	buff = (Comando *)malloc(sizeof(Comando));
+	prioridadeRodando = 100; // Para ser menos importante do que qualquer processo
+	executando = 0;
+	signal(SIGUSR1, signusr1_handler);
+	printf("Escalonador pid = %d\n", getpid());
 	while(TRUE){
 		while( ( nBytes = read(p[0], buff, sizeof(Comando)) ) != 0 ){
-			#ifdef DEBUG
 			printf("Comando %s recebido com prioridade %d\n", buff->com, buff->prioridade);
-			#endif
 			// Insere na fila
 			insereFilaCmd(buff->prioridade, buff->com);
+			if(buff->prioridade < prioridadeRodando) break; // Para de receber comandos para alterar execução
 		}
+		printf("Executando %d prioridadeRodando %d\n", executando, prioridadeRodando);
 		// Retira primeiro da fila e espera
 		flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer, &prioridadeBuffer);
-		if(flagFila == 0){
-			//Comando
-			#ifdef DEBUG
-			printf("Comando %s recebido com prioridade %d\n", cmdBuffer, prioridadeBuffer);
-			#endif
-			flagFork = fork();
-			if(flagFork == 0){
-				// exec
-				char *args[]={cmdBuffer, NULL}; 
-				execvp(cmdBuffer, args);
-				#ifdef DEBUG
-				printf("execvp(%s, args)\n", cmdBuffer);
-				#endif
+		if(flagFila != -1){
+			// Foi retirado um nó da fila
+			if(prioridadeBuffer < prioridadeRodando || executando == 0){
+				// Necessario mudar o processo sendo executado
+				if (executando != 0){
+					printf("Parando processo %d com prioridade %d\n", executando, prioridadeRodando);
+					pausaProcesso(executando);
+					insereFilaPid(prioridadeRodando, executando);
+				}
+				prioridadeRodando = prioridadeBuffer;
+				if(flagFila == 0){
+					// Comando recebido, iniciar novo processo
+					printf("Iniciando processo %s\n", cmdBuffer);
+					executando = iniciaNovoProcesso(cmdBuffer);
+				}
+				else if(flagFila == 1){
+					// PID recebido, resumir processo parado
+					printf("Resumindo processo %d\n", pidBuffer);
+					resumeProcesso(pidBuffer);
+					executando = pidBuffer;
+				}
 			}
-			else waitpid(flagFork, &status, 0);
+			else {
+				printf("Processo nao vai ser executado, voltando para a lista\n");
+				if(flagFila == 0) insereFilaCmd(prioridadeBuffer, cmdBuffer);
+				else if (flagFila == 1) insereFilaPid(prioridadeBuffer, pidBuffer);
+			}
 		}
-		else if(flagFila == 1){
-			//PID
-			#ifdef DEBUG
-			printf("Pid %d recebido com prioridade %d\n", pidBuffer, prioridadeBuffer);
-			#endif
-			// Não é esperado receber um PID. Fila de prioridade deverá esperar a execução terminar 
-			// TODO Consultar professor se ao receber uma mensagem com processo superior deve-se interromper o processo
-			fprintf(stderr, "Não é esperado obter um PID");
-			exit(EXIT_FAILURE);	
+		else{
+			printf("Nenhum nó foi retirado\n");
+			return;
 		}
-		else {
-			break;
-		}
+		printf("Parando escalonador %d\n", getpid());
+		kill(getpid(), SIGSTOP);
 	}
 }
 
-void parentHandler(FILE *fp){
+void parentHandler(FILE *fp, pid_t escl){
 	char * linha = NULL; // Ponteiro para a linha a ser lida
 	size_t tam = 0;
 	ssize_t charLidos; // Quantidade de caracteres lidos
@@ -126,9 +198,13 @@ void parentHandler(FILE *fp){
 		printf("Processo pai iniciado com pid %d\n", getpid());
 	#endif
 
-	while ((charLidos = getline(&linha, &tam, fp)) != -1){
+	while ((charLidos = getline(&linha, &tam, fp)) != -1){	
 		interpretaComandos(linha);
-
+		printf("Resumindo escalonador %d\n", escl);
+		kill(escl, SIGCONT);
+		sleep(5); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a
+					serem executados, e deverá iniciá-los exatamente na ordem em que aparecem nesse arquivo,
+					com um intervalo de 1 segundo entre cada um deles */
 	}
 	free(linha); // getLine aloca memoria automaticamente
 
@@ -145,6 +221,7 @@ void parentHandler(FILE *fp){
 int main(int argc, char *argv[]){
 	FILE *fp; // Ponteiro para o arquivo a ser aberto
 	pid_t flagFork;
+	int status;
 
 	if(pipe(p) < 0){
 		fprintf(stderr, "Erro ao realizar o pipe para a comunicacao\n");
@@ -170,7 +247,9 @@ int main(int argc, char *argv[]){
 	else {
 		/* Processo pai */
 		close(p[0]);
-		parentHandler(fp);
+		kill(SIGSTOP, flagFork);
+		parentHandler(fp, flagFork);
+		waitpid(flagFork, &status, 0);
 	}
 
 	return 0;

@@ -107,6 +107,7 @@ pid_t iniciaNovoProcesso(char * cmd){
 			waitpid(fFork, &status, 0);
 			if(WIFEXITED(status)){
 				printf("EXITED!! %d paipid = %d\n", WEXITSTATUS(status), paiPid);
+				kill(paiPid, SIGCONT);
 				kill(paiPid, SIGUSR1);
 				printf("SIGCONT + SIGUSR ENVIADOS PARA %d\n", paiPid);
 			}
@@ -116,7 +117,6 @@ pid_t iniciaNovoProcesso(char * cmd){
 	}
 	else {
 		pid_t forkBuff;
-		//kill(getpid(), SIGSTOP);
 		msgrcv(msgid, &message, sizeof(message), 1, 0);
 		printf("fFork = %d\n", message.msg);
 		return message.msg;
@@ -182,7 +182,7 @@ void childHandler(){
 			}
 		}
 		else{
-			printf("Nenhum nó foi retirado\n");
+			printf("Fim da fila e dos comandos... Saindo do programa\n");
 			return;
 		}
 		printf("Parando escalonador %d\n", getpid());
@@ -202,7 +202,7 @@ void parentHandler(FILE *fp, pid_t escl){
 		interpretaComandos(linha);
 		printf("Resumindo escalonador %d\n", escl);
 		kill(escl, SIGCONT);
-		sleep(5); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a
+		sleep(1); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a
 					serem executados, e deverá iniciá-los exatamente na ordem em que aparecem nesse arquivo,
 					com um intervalo de 1 segundo entre cada um deles */
 	}
@@ -249,6 +249,7 @@ int main(int argc, char *argv[]){
 		close(p[0]);
 		kill(SIGSTOP, flagFork);
 		parentHandler(fp, flagFork);
+		close(p[1]);
 		waitpid(flagFork, &status, 0);
 	}
 

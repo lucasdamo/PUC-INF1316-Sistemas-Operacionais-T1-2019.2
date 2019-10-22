@@ -64,7 +64,7 @@ void interpretaComandos(char * linha, int idConta){
 	char * saveptr, * saveptr2; // Variavel para uso interno do strtok
 	char * argumentos[NUM_PALAVRAS_ESPERADO];
 	Programa * prog;
-	int contaPalavra = 0, i;
+	int contaPalavra = 0, i, flagVOcupado;
 
 	prog = (Programa*)malloc(sizeof(Programa));
 	palavra = strtok_r(linha, " \n", &saveptr);
@@ -83,7 +83,6 @@ void interpretaComandos(char * linha, int idConta){
 	}
 	strcpy(prog->com, argumentos[1]);
 	palavraprd = strtok_r(argumentos[2], "I=", &saveptr2);
-	printf("PALAVAPRD %s\n", palavraprd);
 	if((char)palavraprd[0] >= '0' && (char)palavraprd[0] <= '9')
 		sscanf(palavraprd, "%d", &prog->inicio);
 	else{	
@@ -107,12 +106,23 @@ void interpretaComandos(char * linha, int idConta){
 	prog->status = 0;
 	prog->pid = 0;
 	prog->id = idConta;
+	semaforoP(semId);
+	flagVOcupado = -1;
 	for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
-		semaforoP(semId);
-		p[i] = *prog;
-		semaforoV(semId);
-		
+		if( p[i].id != 0 ) {
+			flagVOcupado = i;
+			break;
+		}
 	}
+	if(flagVOcupado != -1){
+		printf("Não foi possivel adicionar o programa %s no tempo %d\n", prog->com, flagVOcupado);
+	}
+	else{
+		for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
+			p[i] = *prog;
+		}
+	}
+	semaforoV(semId);
 
 }
 
@@ -156,7 +166,17 @@ pid_t iniciaNovoProcesso(char * cmd){
 	else{
 		return fFork;
 	}
+}
 
+void changeProgramaById(int id, pid_t pid){
+	int i;
+	semaforoP(semId);
+	for(i=0; i<TAM_VETOR; i++){
+		if(p[i].id == id){
+			p[i].pid = pid;
+		}
+	}
+	semaforoV(semId);
 }
 
 void childHandler(){
@@ -197,9 +217,14 @@ void childHandler(){
 			else if(executando->id != buff->id){
 				pid_t pidAux;
 				kill(executando->pid, SIGSTOP);
-				pidAux = iniciaNovoProcesso(buff->com);
 				executando = buff;
-				executando->pid = pidAux;
+				if(buff->pid == 0){
+					pidAux = iniciaNovoProcesso(buff->com);
+					changeProgramaById(buff->id, pidAux);
+				}
+				else{
+					kill(buff->pid, SIGCONT);
+				}
 			}
 
 		}

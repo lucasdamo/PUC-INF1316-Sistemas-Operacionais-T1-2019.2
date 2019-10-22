@@ -1,24 +1,15 @@
 /***************************************************************************
-*  Módulo de implementação: Fila
+*  Módulo de implementação: RoundRobin
 *
 *  Projeto: PUC Rio INF1316 Sistemas Operacionais T1 2019.2
 *  Gestor:  LES/DI/PUC-Rio
-*  Autores: Lucas Rebello Damo
+*  Autores: Luiza Del Negro
 *
 *  Histórico de evolução:
 *     Versão	Data		Observações
-*	  2			13/10/2019	Adicionado suporte a comandos além de PID
-*     1			05/10/2019	Versão inicial
+*     1			20/10/2019	Versão inicial utilizando os moldes de funções de fila de prioridades feitas por Lucas Damo
 *
 ***************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
 
 #include "fila.h"
 #define DEBUG 0
@@ -40,9 +31,6 @@ struct fila {
 
 Fila *pFila;
 
-/** Ponteiro para funcao de handler
-de sinais */
-int * waitingMemory;
 int PROCESSOS_FINALIZADOS = 0;
 
 void inicializaFila(void){
@@ -52,15 +40,15 @@ void inicializaFila(void){
 }
 
 static void insereFila( char * comando_programa,char * nome_programa){
-	No * novo = (No *) malloc(sizeof(No));	
+	No *novo = (No *) malloc(sizeof(No));	
 
-	novo->nomedoprograma=(char*) malloc(sizeof(char) * strlen(nome_programa));
+	novo->nomedoprograma = (char*) malloc(sizeof(char) * strlen(nome_programa));
 	strcpy(novo->nomedoprograma,nome_programa);
-	novo->comandodoprograma=(char*) malloc(sizeof(char) * strlen(comando_programa));
+	novo->comandodoprograma = (char*) malloc(sizeof(char) * strlen(comando_programa));
 	strcpy(novo->comandodoprograma,comando_programa);
 	novo->prox=NULL;
-	novo->status=0;
-	novo->pid=0;
+	novo->status = 0;
+	novo->pid = 0;
 
 	if(pFila == NULL) inicializaFila();
 	
@@ -77,34 +65,12 @@ static void insereFila( char * comando_programa,char * nome_programa){
 			paux = paux->prox;
 		}
 		novo->prox = NULL;
-		paux2->prox = novo;
-		
+		paux2->prox = novo;	
 	}
 	pFila->contador = pFila->contador + 1;
 }
 
 
-
-
-// int retiraPrimeiro(char * comando, pid_t * pid, int * prioridade){
-// 	No *primeiro;
-// 	Cmdpid * cp;
-// 	int tipo;
-// 	if(pFila == NULL) return -1;
-// 	if(pFila->primeiro == NULL) return -1;
-// 	primeiro = pFila->primeiro;
-// 	pFila->primeiro = pFila->primeiro->prox;
-// 	free(primeiro);
-// 	pFila->contador--;
-// 	if(tipo == 0){
-// 		strcpy(comando, cp->comando);
-// 		return 0;
-// 	}
-// 	else{
-// 		*pid = cp->processo;
-// 		return 1;
-// 	}
-// }
 
 void esvaziaFila(void){
 	free(pFila);
@@ -112,97 +78,101 @@ void esvaziaFila(void){
 }
 
 void MostraFila(void){
-	No* aux=pFila->primeiro;
+	No* aux = pFila->primeiro;
 	while(aux!=0){
-		printf("comanando: %s programa: %s  pid: %d\n",aux->comandodoprograma, aux->nomedoprograma,aux->pid);
-		aux=aux->prox;
+		printf("comanando: %s programa: %s  \n",aux->comandodoprograma, aux->nomedoprograma);
+		aux = aux->prox;
 	}
-
 }
 
-void InsereFim(No * no){
-	no->status=0;
+void Dequeue(void){
+	printf("DEQUEUE- TIRANDO %s na fila\n", pFila->primeiro->nomedoprograma);
+	No *aux;
+	No *aux2;
+	aux = pFila->primeiro;// que é o que vamos tirar
+	if(aux->prox==NULL){/*Fila vazia*/
+		printf("DEQUEUE- A FILA FICA VAZIA \n");
+		aux = NULL;
+		pFila->primeiro = NULL;
+	}
+	aux2 = aux->prox;// o que sera o proximo primeiro
+	pFila->primeiro = aux2;// trocando para o proximo da fila
+	printf("DEQUEUE - ATUAL PRIMEIRO %s \n",pFila->primeiro->nomedoprograma);
+}
+
+void Enqueue(No * no){
+	No *novo = (No *) malloc(sizeof(No));	
+	No *paux;
+	paux = pFila->primeiro;
+	printf("ENQUEUE-Botando %s na fila\n", no->nomedoprograma);
+	novo = no;
+	novo->status = 0;
+	if(no==NULL){
+		printf("ENQUEUE-Nao tem mais nada para adicionar\n");
+		return;
+	}
 	if(pFila->primeiro == NULL){
-		pFila->primeiro = no;
-		no->prox = NULL;
+		pFila->primeiro = novo;
+		novo->prox = NULL;
 	}
 	else{
-		No *paux, *paux2;
-		paux = pFila->primeiro;
-		paux2 = NULL;
-		while(paux != NULL){
-			paux2 = paux;
+		while(paux->prox!= NULL){
 			paux = paux->prox;
 		}
-		no->prox = NULL;
-		paux2->prox = no;	
+		paux->prox=no;	
 	}
 }
 
-void AnalisaStatus(void){
 
-}
 
 /*enquanto os processos nao acabam, eu vou por toda a fila*/
 void RoundRobin(void){
-	No*aux=pFila->primeiro;
-
+	No *aux = pFila->primeiro;
 	int i=0, j=0;
-	/*tem que ver o status dos processos em espera antes?*/
-	AnalisaStatus();
-	while(PROCESSOS_FINALIZADOS < pFila->contador){
-		if(aux->pid==0){/* Se o pid for zero ele nao foi inicializado, é a primeira vez que ele vai rodar*/
-			aux->pid=fork();
-			if(aux->pid!=0){/*é o pai*/
-				sleep(QUANTUM);/* dorme enquanot o flho executa*/
-				printf("interrompendo o processo %s \n", aux->nomedoprograma);
-				kill(aux->pid, SIGSTOP);
-				/*interrompe e manda pro fim da fila*/
-				aux->status=2;
-				No*aux2=aux;
-				aux=aux->prox;
-				InsereFim(aux2);
-				free(aux2);
+	printf("00\n");
+	for(i=0;i<pFila->contador;i++){
+		aux->pid = fork();
+		if(aux->pid==0){/*É filho*/
+	/*CHAMANDO NA PRIMEIRA VEZ PARA TODOS E QUANDO ISSO TERMINAR O */
+		printf("primeiro filho-Executando o processo %s \n", aux->nomedoprograma);
+		execv(aux->nomedoprograma, NULL);/**/
+		printf("primeiro filho-interrompendo o processo %s \n", aux->nomedoprograma);	
+		exit(1);		
+		}
+		if(aux->pid>0){/*PAI controla filho*/
+			sleep(QUANTUM);/*Pai tem que esperar o filho*/
+			/* antes de acabar tem que ver se acabou*/
+			int status;
+			int wpid = waitpid(aux->pid, &status, WNOHANG);/*analisa o status do filho*/
+			if(wpid && WIFEXITED(status) && (WEXITSTATUS(status) == 0)){/*SE O FILHO ACABOU, ACABOU TBM*/
+				printf("FIM-Processo %s finalizado \n", aux->nomedoprograma);
+				kill(aux->pid, SIGKILL);// termina o processo
+				Dequeue();// tira da fila					printf("FIM-Dentro dos finalizados, passa para o proximo = %s\n", aux->nomedoprograma);
+				PROCESSOS_FINALIZADOS=PROCESSOS_FINALIZADOS+1;
+			}
+			kill(aux->pid, SIGSTOP);// para o processo
+			/*se nao acabou, tira e passa pro final*/
+			printf("primeiro pai-Colocando: %s no fim da fila \n", aux->nomedoprograma);
+			No * aux2 = (No *) malloc(sizeof(No));	
+			aux2= pFila->primeiro;// que é o que vamos tirar
+			aux=aux->prox;
+			Enqueue(aux2);
+			printf("primeiro pai-Proximo elemento: %s \n", aux->nomedoprograma);
+			
+			kill(aux->pid, SIGCONT);
+			
+		}
+		
+		if(aux==NULL){
+			printf("ACABOU!\n");
+		}
+		if(aux->pid<0){/*ERRO NA ALOCACAO*/
+		printf("Erro na alocação");
+		exit(1);
+		}
+		}
 
-			}
-			else{
-				printf("Executando o processo %s \n", aux->nomedoprograma);
-				execve(aux->nomedoprograma, NULL, NULL);
-			}
-		}
-		else{/*se ja foi inicializado*/
-			if(aux->status!=3){/* Se ainda nao acabou*/
-				int status;
-				int wpid = waitpid(aux->pid, &status, WNOHANG);
-				printf("Executando o processo %s \n", aux->nomedoprograma);
-				kill(aux->pid, SIGCONT);
-				sleep(QUANTUM);
-				printf("interrompendo o processo %s \n", aux->nomedoprograma);
-				kill(aux->pid, SIGSTOP);
-				if(wpid && (aux->status != 3) && WIFEXITED(status) && (WEXITSTATUS(status) == 0)){/*Se nao acabou, tem que ver o status dele de novo */
-					printf("Processo %s finalizado \n", aux->nomedoprograma);
-					aux->status = 3;
-					kill(aux->pid, SIGKILL);
-					/*aqui coloca func que remove o elemento da lista*/
-					/*interrompe e manda pro fim da fila*/
-					No*aux2=aux;
-					aux=aux->prox;
-					free(aux2);
-					PROCESSOS_FINALIZADOS=PROCESSOS_FINALIZADOS+1;
-				}
-				/*se nao acabou, tira do fim e passa pro final*/
-				/*interrompe e manda pro fim da fila*/
-				aux->status=2;
-				No*aux2=aux;
-				aux=aux->prox;
-				InsereFim(aux2);
-				free(aux2);
-			}
-		}
-		aux=aux->prox;
 	}
-
-}
 
 #ifdef DEBUG
 int main(void){
@@ -215,11 +185,11 @@ int main(void){
 		printf("ERRO AO ABRIR O ARQUIVO");
 		exit(1);
 	}
-	
+	/*Cria a fila com os processos do arquivo*/
 	while(fscanf(arq, "%s %s ", comando, programa) == 2){
 		insereFila(comando,programa);
-	}
-	MostraFila();
+	 }
+	// MostraFila();
 	
 	RoundRobin();
 

@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
-/*io bound manda sinal qnd i chega a 7*/
+/*io bound manda sinal qnd i chega a 7 para terminar filho*/
 int main(int argc, char const* argv[]){
 	int i = 0;
 	
-	printf("03");
+	
+	printf("PROGRAMA D RODANDO");
 	while (i < 15) {
 		sleep(1);
 		i++;

@@ -148,7 +148,7 @@ void childHandler(){
 			printf("Comando %s recebido com prioridade %d\n", buff->com, buff->prioridade);
 			// Insere na fila
 			insereFilaCmd(buff->prioridade, buff->com);
-			if(buff->prioridade < prioridadeRodando || executando = 0) break; // Para de receber comandos para alterar execução
+			if(buff->prioridade < prioridadeRodando || executando == 0) break; // Para de receber comandos para alterar execução
 		}
 		printf("Executando %d prioridadeRodando %d\n", executando, prioridadeRodando);
 		// Retira primeiro da fila e espera

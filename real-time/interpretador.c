@@ -52,13 +52,14 @@ typedef struct programa {
 	int status;	  	// 1 = Concluido 0 = Caso contrário
 	int inicio;   	// Parametro I do exec.txt MOMENTO INICIO
 	int duracao;  	// Parametro D do exec.txt TEMPO DURAÇÃO
+	int id; 		// Id unico para identificar o programa (dois programas podem ter o mesmo comando, mas necessariamente tem ids diferentes)
 } Programa;
 
 int segmento;
 Programa * p;
 int semId;
 
-void interpretaComandos(char * linha){
+void interpretaComandos(char * linha, int idConta){
 	char * palavra, * palavraprd;
 	char * saveptr, * saveptr2; // Variavel para uso interno do strtok
 	char * argumentos[NUM_PALAVRAS_ESPERADO];
@@ -71,7 +72,7 @@ void interpretaComandos(char * linha){
 		argumentos[contaPalavra] = palavra;
 		contaPalavra++;
 		if(contaPalavra > NUM_PALAVRAS_ESPERADO){
-			fprintf(stderr, "Numero de parâmetros inesperado!\n");
+			fprintf(stderr, "Numero de parâmetros inesperado!\n");	
 			exit(EXIT_FAILURE);	
 		}
 		palavra = strtok_r(NULL, " \n", &saveptr);
@@ -87,7 +88,8 @@ void interpretaComandos(char * linha){
 	sscanf(palavraprd, "%d", &prog->duracao);
 	prog->status = 0;
 	prog->pid = 0;
-	for(i = prog->inicio; i < prog->duracao; i++){
+	prog->id = idConta;
+	for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
 		semaforoP(semId);
 		p[i] = *prog;
 		semaforoV(semId);
@@ -99,14 +101,16 @@ void interpretaComandos(char * linha){
 
 void parentHandler(FILE *fp){
 	char * linha = NULL; // Ponteiro para a linha a ser lida
+	int idConta;
 	size_t tam = 0;
 	ssize_t charLidos; // Quantidade de caracteres lidos
 	#ifdef DEBUG
 		printf("Processo pai iniciado com pid %d\n", getpid());
 	#endif
-
+	idConta = 0;
 	while ((charLidos = getline(&linha, &tam, fp)) != -1){	
-		interpretaComandos(linha);
+		interpretaComandos(linha, idConta);
+		idConta++;
 		sleep(1); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a
 					serem executados, e deverá iniciá-los exatamente na ordem em que aparecem nesse arquivo,
 					com um intervalo de 1 segundo entre cada um deles */
@@ -142,8 +146,6 @@ void childHandler(){
 	int time[60] = {0};
 	int nBytes, segundos;
 	Programa * executando;
-	buff = (Programa *)malloc(sizeof(Programa));
-	sleep(5);
 
 	semaforoP(semId);
 	printf("Testando mem comp; %s d %d i %d\n", p[1].com, p[1].duracao, p[1].inicio);
@@ -156,16 +158,48 @@ void childHandler(){
   //   	double cpu_time_used;
      
   //   	start = clock();
+		semaforoP(semId);
+		buff = &p[segundos];
+		semaforoV(semId);
+		printf("%d Segundos = %d\n", getpid(), segundos);
 		if(executando != NULL){
 			int status;
-			waitpid(executando->pid, &status, WNOHANG);
-			if(WIFEXITED(status)){
-				executando->status = 1;
+			//waitpid(executando->pid, &status, WNOHANG);
+			printf("Processo executando %s Inicio %d Duracao %d Pid %d\n",executando->com, executando->inicio, executando->duracao, executando->pid);
+			printf("strcmp %d\n", strcmp(buff->com, ""));
+			// TODO: Verificar se esse processo é pai, para poder dar WAITPID!!
+			// if(WIFEXITED(status)){
+			// 	printf("PAROUUU\n");
+			// 	executando->status = 1;
+			// }
+			if(strcmp(buff->com, "") == 0){
+				printf("Fim do tempo do processo executando, parando-o! %d\n", executando->pid);
+				kill(executando->pid, SIGSTOP);
+				executando = NULL;
+			}
+			else if(executando->id != buff->id){
+				pid_t pidAux;
+				kill(executando->pid, SIGSTOP);
+				pidAux = iniciaNovoProcesso(buff->com);
+				executando = buff;
+				executando->pid = pidAux;
 			}
 
 		}
 		else{
-			printf("p[segundos] p[%d].cmd = %s\n", segundos, p[segundos].com);
+			if(strcmp(buff->com, "")){
+				if(buff->pid != 0){
+					printf("Continuado processo %d\n", buff->pid);
+					kill(buff->pid, SIGCONT);
+					executando = buff;
+				}
+				else{
+					pid_t pidAux;
+					pidAux = iniciaNovoProcesso(buff->com);
+					executando = buff;
+					executando->pid = pidAux;
+				}
+			}
 		}
   // 		end = clock();
   //    	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
@@ -173,7 +207,7 @@ void childHandler(){
   //    	printf("Time elapsed = %f sleeping for %f\n", cpu_time_used, (1.0 - cpu_time_used) * 1000);
   //    	#endif
   //    	usleep((1.0 - cpu_time_used) * 1000);
-		sleep(1);
+		sleep(1); // Desconsiderando o tempo perdido na funcao por ser infimo. Solução alternativa comentada acima
 		segundos = (segundos + 1)%60;
 
 	}

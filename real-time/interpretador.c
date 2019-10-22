@@ -83,7 +83,25 @@ void interpretaComandos(char * linha, int idConta){
 	}
 	strcpy(prog->com, argumentos[1]);
 	palavraprd = strtok_r(argumentos[2], "I=", &saveptr2);
-	sscanf(palavraprd, "%d", &prog->inicio);
+	printf("PALAVAPRD %s\n", palavraprd);
+	if((char)palavraprd[0] >= '0' && (char)palavraprd[0] <= '9')
+		sscanf(palavraprd, "%d", &prog->inicio);
+	else{	
+		int last_index = -1;
+		semaforoP(semId);
+		for(i=0; i<TAM_VETOR; i++){
+			if(p[i].id == (idConta - 1)){
+				last_index = i;
+			}
+		}
+		semaforoV(semId);
+		if(last_index == -1){
+			fprintf(stderr, "Não foi possivel achar o tempo de termino do programa anterior\n");
+			exit(EXIT_FAILURE);	
+		}
+		printf("Achou o inicio! %d\n", last_index);
+		prog->inicio = last_index + 1;
+	}
 	palavraprd = strtok_r(argumentos[3], "D=", &saveptr2);
 	sscanf(palavraprd, "%d", &prog->duracao);
 	prog->status = 0;
@@ -107,7 +125,7 @@ void parentHandler(FILE *fp){
 	#ifdef DEBUG
 		printf("Processo pai iniciado com pid %d\n", getpid());
 	#endif
-	idConta = 0;
+	idConta = 1;
 	while ((charLidos = getline(&linha, &tam, fp)) != -1){	
 		interpretaComandos(linha, idConta);
 		idConta++;
@@ -161,12 +179,11 @@ void childHandler(){
 		semaforoP(semId);
 		buff = &p[segundos];
 		semaforoV(semId);
-		printf("%d Segundos = %d\n", getpid(), segundos);
+		printf("%d Segundos = %d programa[segundos] => inicio = %d duracao = %d\n", getpid(), segundos, buff->inicio, buff->duracao);
 		if(executando != NULL){
 			int status;
 			//waitpid(executando->pid, &status, WNOHANG);
 			printf("Processo executando %s Inicio %d Duracao %d Pid %d\n",executando->com, executando->inicio, executando->duracao, executando->pid);
-			printf("strcmp %d\n", strcmp(buff->com, ""));
 			// TODO: Verificar se esse processo é pai, para poder dar WAITPID!!
 			// if(WIFEXITED(status)){
 			// 	printf("PAROUUU\n");

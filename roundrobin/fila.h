@@ -10,8 +10,15 @@
 *     1			20/10/2019	Versão inicial utilizando os moldes de funções de fila de prioridades feitas por Lucas Damo
 *
 ***************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <signal.h>
 
-typedef union cmdpid Cmdpid;
 typedef struct no No;
 typedef struct fila Fila;
 

@@ -10,15 +10,6 @@
 *     1			20/10/2019	Versão inicial utilizando os moldes de funções de fila de prioridades feitas por Lucas Damo
 *
 ***************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <signal.h>
-
 
 #include "fila.h"
 #define DEBUG 0
@@ -148,6 +139,15 @@ void RoundRobin(void){
 	while(PROCESSOS_FINALIZADOS < pFila->contador){
 		aux->pid=fork();// fork>0 sucesso na criacao fork <0 em caso de erro fork=0 child process
 		printf("01 -  A ser analisado:%s\n", aux->nomedoprograma);
+
+		if(aux->pid==0){/*É filho*/
+			printf("filho-Executando o processo %s \n", aux->nomedoprograma);
+			execve(aux->nomedoprograma, NULL, NULL);
+			sleep(QUANTUM);/*executa por x tempo*/
+			printf("filho-interrompendo o processo %s \n", aux->nomedoprograma);
+			kill(aux->pid, SIGSTOP);
+			aux->status=2;
+		}
 		if(aux->pid>0){/*PAI controla filho*/
 			if(aux->status!=3){/* Se ainda nao acabou*/
 				int status;
@@ -175,15 +175,6 @@ void RoundRobin(void){
 				Enqueue(aux2);
 				printf("pai-Proximo elemento: %s \n", aux->nomedoprograma);
 			}
-
-		}
-		if(aux->pid==0){/*É filho*/
-			printf("filho-Executando o processo %s , pid %d\n", aux->nomedoprograma, aux->pid);
-			execve(aux->nomedoprograma, NULL, NULL);
-			sleep(QUANTUM);/*executa por x tempo*/
-			printf("filho-interrompendo o processo %s \n", aux->nomedoprograma);
-			kill(aux->pid, SIGSTOP);
-			aux->status=2;
 
 		}
 		if(aux->pid<0){/*ERRO NA ALOCACAO*/

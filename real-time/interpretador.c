@@ -24,7 +24,7 @@
 #include <fcntl.h> 
 #include <sys/shm.h>
 #include <sys/stat.h>
-
+#include <time.h>
 #define DEBUG 1
 #define TRUE 1
 #define TAM_VETOR 60
@@ -47,11 +47,11 @@ union semun
 };
 
 typedef struct programa {
-	char com[255];	  // Comando para inicio do programa
-	pid_t pid;	  // Pid para o processo, caso o programa já tenha iniciado
-	int status;	  // 1 = Concluido 0 = Caso contrário
-	int inicio;   // Parametro I do exec.txt MOMENTO INICIO
-	int duracao;  // Parametro D do exec.txt TEMPO DURAÇÃO
+	char com[255];	// Comando para inicio do programa
+	pid_t pid;	  	// Pid para o processo, caso o programa já tenha iniciado
+	int status;	  	// 1 = Concluido 0 = Caso contrário
+	int inicio;   	// Parametro I do exec.txt MOMENTO INICIO
+	int duracao;  	// Parametro D do exec.txt TEMPO DURAÇÃO
 } Programa;
 
 int segmento;
@@ -97,7 +97,7 @@ void interpretaComandos(char * linha){
 }
 
 
-void parentHandler(FILE *fp, pid_t escl){
+void parentHandler(FILE *fp){
 	char * linha = NULL; // Ponteiro para a linha a ser lida
 	size_t tam = 0;
 	ssize_t charLidos; // Quantidade de caracteres lidos
@@ -110,25 +110,73 @@ void parentHandler(FILE *fp, pid_t escl){
 		sleep(1); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a
 					serem executados, e deverá iniciá-los exatamente na ordem em que aparecem nesse arquivo,
 					com um intervalo de 1 segundo entre cada um deles */
-		semaforoP(semId);
-		printf("Testando mem comp; %s d %d i %d\n", p[1].com, p[1].duracao, p[1].inicio);
-		semaforoV(semId);
 	}
 	free(linha); // getLine aloca memoria automaticamente
+
+}
+
+pid_t iniciaNovoProcesso(char * cmd){
+	int fFork;
+	fFork = fork();
+	if(fFork < 0){
+		fprintf(stderr, "Não foi possivel fazer o fork ao tentar iniciar o prograam %s\n", cmd);
+		exit(EXIT_FAILURE);
+	}
+	if(fFork == 0){
+		int a;
+		#ifdef DEBUG
+		printf("Executando processo... %d\n", getpid());
+		#endif
+		a = execl(cmd, cmd, "", "", NULL);
+		fprintf(stderr, "Não foi possivel executar o programa %s\n", cmd);
+		exit(EXIT_FAILURE);
+	}
+	else{
+		return fFork;
+	}
 
 }
 
 void childHandler(){
 	Programa * buff;
 	int time[60] = {0};
-	int nBytes;
-
+	int nBytes, segundos;
+	Programa * executando;
 	buff = (Programa *)malloc(sizeof(Programa));
-	printf("Filho iniciado\n");
+	sleep(5);
+
+	semaforoP(semId);
+	printf("Testando mem comp; %s d %d i %d\n", p[1].com, p[1].duracao, p[1].inicio);
+	semaforoV(semId);
+
+	executando = NULL;
+	segundos = 0;
 	while(TRUE){
+  //	clock_t start, end;
+  //   	double cpu_time_used;
+     
+  //   	start = clock();
+		if(executando != NULL){
+			int status;
+			waitpid(executando->pid, &status, WNOHANG);
+			if(WIFEXITED(status)){
+				executando->status = 1;
+			}
+
+		}
+		else{
+			printf("p[segundos] p[%d].cmd = %s\n", segundos, p[segundos].com);
+		}
+  // 		end = clock();
+  //    	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+  //    	#ifdef DEBUG
+  //    	printf("Time elapsed = %f sleeping for %f\n", cpu_time_used, (1.0 - cpu_time_used) * 1000);
+  //    	#endif
+  //    	usleep((1.0 - cpu_time_used) * 1000);
+		sleep(1);
+		segundos = (segundos + 1)%60;
 
 	}
-
 }
 
 /***********************************************************************
@@ -162,12 +210,23 @@ int main(int argc, char *argv[]){
 	}
 	else if (flagFork == 0){
 		/* Processo filho */
+		#ifdef DEBUG
+		printf("Inicio do filho\n");
+		#endif
 		childHandler();
+		#ifdef DEBUG
+		printf("Fim do filho\n");
+		#endif
 	}
 	else {
 		/* Processo pai */
-		kill(SIGSTOP, flagFork);
-		parentHandler(fp, flagFork);
+		#ifdef DEBUG
+		printf("Inicio do pai\n");
+		#endif
+		parentHandler(fp);
+		#ifdef DEBUG
+		printf("Fim do pai\n");
+		#endif
 		waitpid(flagFork, &status, 0);
 	}
 	shmdt(p);

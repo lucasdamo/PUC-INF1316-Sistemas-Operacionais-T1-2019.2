@@ -2,8 +2,8 @@
 #include <unistd.h>
 /*cpu bound depende mais do processador do que da entrada ou saida*/
 int main(int argc, char const* argv[]){
-	int i = 0;
-	float num;
+	// int i = 0;
+	// float num;
 	
 	printf("PROGRAMA B RODANDO");
 	// while (1){
@@ -14,8 +14,8 @@ int main(int argc, char const* argv[]){
 	// 	}
 	// }
 	// i++;
-	for (int i = 0; i < 10; ++i){
-		sleep(2);
-	}
+	// for (int i = 0; i < 10; ++i){
+	// 	sleep(2);
+	// }
 	return 0;
 }

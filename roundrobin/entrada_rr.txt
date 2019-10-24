@@ -1,4 +1,4 @@
-exec A
-exec B
-exec C
-exec D
+Run ./A
+Run ./B
+Run ./C
+Run ./D

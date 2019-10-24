@@ -4,7 +4,7 @@
 *  Projeto: PUC Rio INF1316 Sistemas Operacionais T1 2019.2
 *  Gestor:  LES/DI/PUC-Rio
 *  Autores: Luiza Del Negro
-*
+*           Lucas Rebello Damo
 *  Histórico de evolução:
 *     Versãgio	Data		Observações
 *     1			20/10/2019	Versão inicial utilizando os moldes de funções de fila de prioridades feitas por Lucas Damo
@@ -19,6 +19,7 @@
 #include <sys/shm.h>
 #include <signal.h>
 
+typedef union cmdpid Cmdpid;
 typedef struct no No;
 typedef struct fila Fila;
 
@@ -48,7 +49,69 @@ void inicializaFila(void);
 *		- A fila com novos nós
 *
 ***********************************************************************/
-static void insereFila( char * comando_programa,char * nome_programa);
+static void insereFila( Cmdpid * cp, int tipocp);
+
+/***********************************************************************
+*   Função: insereFilaCmd
+*
+*	Descrição: Insere ordenadamente na fila, uma nova struct contendo
+*	o comando.
+*
+*	Parâmetros: 
+*		- Comando: String de até 255 caracteres
+*
+*	Assertivas De Entrada:	
+*		- A fila já foi inicializada
+*
+*	Assertivas De Saída:	
+*		- A fila possui mais um nó recém inserido
+*
+***********************************************************************/
+void insereFilaCmd(char*comando);
+
+/***********************************************************************
+*   Função: insereFilaPid
+*
+*	Descrição: Insere ordenadamente na fila, uma nova struct contendo
+*	tanto o numero do processo quanto sua prioridade.
+*
+*	Parâmetros: 
+*		- Prioridade: Prioridade associada ao processo
+*		- Comando: String de até 255 caracteres
+*
+*	Assertivas De Entrada:	
+*		- A fila já foi inicializada
+*
+*	Assertivas De Saída:	
+*		- A fila possui mais um nó recém inserido
+*
+***********************************************************************/
+void insereFilaPid(pid_t pid);
+
+/***********************************************************************
+*   Função: retiraPrimeiro
+*
+*	Descrição: Pega o processo de maior prioridade na fila
+*
+*	Parâmetros: 
+*		- Comando: Ponteiro para char, onde será armazenado a string
+*		caso o nó contenha um comando
+*		- Pid: Ponteiro para uma região do tipo pid_t onde será arma-
+*		zenado caso o nó contenha um número de processo
+*
+*	Retorno: 
+*		- 0, caso o nó contenha comando
+*		- 1, caso o nó contenha número de processo
+*		- Ou então, -1 caso a fila esteja vazia
+*
+*	Assertivas De Entrada:	
+*		- A fila já foi inicializada
+*
+*	Assertivas De Saída:	
+*		- A fila possui um nó a menos
+*
+***********************************************************************/
+int retiraPrimeiro(char*comando,pid_t*pid);
 
 /***********************************************************************
 *
@@ -77,7 +140,6 @@ void esvaziaFila(void);
 *
 ***********************************************************************/
 void MostraFila(void);
-
 
 /***********************************************************************
 *   Função: Dequeue

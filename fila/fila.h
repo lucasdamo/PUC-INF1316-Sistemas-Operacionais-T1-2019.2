@@ -4,10 +4,12 @@
 *  Projeto: PUC Rio INF1316 Sistemas Operacionais T1 2019.2
 *  Gestor:  LES/DI/PUC-Rio
 *  Autores: Lucas Rebello Damo
+*			Luiza Del Negro
 *
 *  Histórico de evolução:
 *     Versão	Data		Observações
-*     1			10/10/2019	Versão inicial
+*	  2			13/10/2019	Adicionado suporte a comandos além de PID
+*     1			05/10/2019	Versão inicial
 *
 ***************************************************************************/
 

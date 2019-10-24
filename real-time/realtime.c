@@ -4,6 +4,7 @@
 *  Projeto: PUC Rio INF1316 Sistemas Operacionais T1 2019.2
 *  Gestor:  LES/DI/PUC-Rio
 *  Autores: Lucas Rebello Damo
+*			Luiza Del Negro
 *
 *  Histórico de evolução:
 *     Versão	Data		Observações
@@ -64,7 +65,7 @@ void interpretaComandos(char * linha, int idConta){
 	char * saveptr, * saveptr2; // Variavel para uso interno do strtok
 	char * argumentos[NUM_PALAVRAS_ESPERADO];
 	Programa * prog;
-	int contaPalavra = 0, i;
+	int contaPalavra = 0, i, flagVOcupado;
 
 	prog = (Programa*)malloc(sizeof(Programa));
 	palavra = strtok_r(linha, " \n", &saveptr);
@@ -83,18 +84,46 @@ void interpretaComandos(char * linha, int idConta){
 	}
 	strcpy(prog->com, argumentos[1]);
 	palavraprd = strtok_r(argumentos[2], "I=", &saveptr2);
-	sscanf(palavraprd, "%d", &prog->inicio);
+	if((char)palavraprd[0] >= '0' && (char)palavraprd[0] <= '9')
+		sscanf(palavraprd, "%d", &prog->inicio);
+	else{	
+		int last_index = -1;
+		semaforoP(semId);
+		for(i=0; i<TAM_VETOR; i++){
+			if(p[i].id == (idConta - 1)){
+				last_index = i;
+			}
+		}
+		semaforoV(semId);
+		if(last_index == -1){
+			fprintf(stderr, "Não foi possivel achar o tempo de termino do programa anterior\n");
+			exit(EXIT_FAILURE);	
+		}
+		printf("Achou o inicio! %d\n", last_index);
+		prog->inicio = last_index + 1;
+	}
 	palavraprd = strtok_r(argumentos[3], "D=", &saveptr2);
 	sscanf(palavraprd, "%d", &prog->duracao);
 	prog->status = 0;
 	prog->pid = 0;
 	prog->id = idConta;
+	semaforoP(semId);
+	flagVOcupado = -1;
 	for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
-		semaforoP(semId);
-		p[i] = *prog;
-		semaforoV(semId);
-		
+		if( p[i].id != 0 ) {
+			flagVOcupado = i;
+			break;
+		}
 	}
+	if(flagVOcupado != -1){
+		printf("Não foi possivel adicionar o programa %s no tempo %d\n", prog->com, flagVOcupado);
+	}
+	else{
+		for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
+			p[i] = *prog;
+		}
+	}
+	semaforoV(semId);
 
 }
 
@@ -107,7 +136,7 @@ void parentHandler(FILE *fp){
 	#ifdef DEBUG
 		printf("Processo pai iniciado com pid %d\n", getpid());
 	#endif
-	idConta = 0;
+	idConta = 1;
 	while ((charLidos = getline(&linha, &tam, fp)) != -1){	
 		interpretaComandos(linha, idConta);
 		idConta++;
@@ -138,7 +167,17 @@ pid_t iniciaNovoProcesso(char * cmd){
 	else{
 		return fFork;
 	}
+}
 
+void changeProgramaById(int id, pid_t pid){
+	int i;
+	semaforoP(semId);
+	for(i=0; i<TAM_VETOR; i++){
+		if(p[i].id == id){
+			p[i].pid = pid;
+		}
+	}
+	semaforoV(semId);
 }
 
 void childHandler(){
@@ -161,12 +200,11 @@ void childHandler(){
 		semaforoP(semId);
 		buff = &p[segundos];
 		semaforoV(semId);
-		printf("%d Segundos = %d\n", getpid(), segundos);
+		printf("%d Segundos = %d programa[segundos] => inicio = %d duracao = %d\n", getpid(), segundos, buff->inicio, buff->duracao);
 		if(executando != NULL){
 			int status;
 			//waitpid(executando->pid, &status, WNOHANG);
 			printf("Processo executando %s Inicio %d Duracao %d Pid %d\n",executando->com, executando->inicio, executando->duracao, executando->pid);
-			printf("strcmp %d\n", strcmp(buff->com, ""));
 			// TODO: Verificar se esse processo é pai, para poder dar WAITPID!!
 			// if(WIFEXITED(status)){
 			// 	printf("PAROUUU\n");
@@ -180,9 +218,14 @@ void childHandler(){
 			else if(executando->id != buff->id){
 				pid_t pidAux;
 				kill(executando->pid, SIGSTOP);
-				pidAux = iniciaNovoProcesso(buff->com);
 				executando = buff;
-				executando->pid = pidAux;
+				if(buff->pid == 0){
+					pidAux = iniciaNovoProcesso(buff->com);
+					changeProgramaById(buff->id, pidAux);
+				}
+				else{
+					kill(buff->pid, SIGCONT);
+				}
 			}
 
 		}

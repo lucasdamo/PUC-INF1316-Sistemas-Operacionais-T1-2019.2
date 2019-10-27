@@ -23,6 +23,7 @@
 #include "fila.h"
 #define DEBUG 1
 #define NUM_PALAVRAS_ESPERADO 2
+#define QUANTUM 1
 int PROCESSOS_FINALIZADOS = 0;
 
 
@@ -34,8 +35,11 @@ int p[2];
 pid_t executando;
 
 
+Fila *pFila;
+
+
 void interpretaComandos(char * linha){
-	char * palavra, * palavraprd;
+	char * palavra;
 	char * saveptr, * saveptr2; // Variavel para uso interno do strtok
 	char * argumentos[NUM_PALAVRAS_ESPERADO];
 	Comando * cmm;
@@ -58,10 +62,9 @@ void interpretaComandos(char * linha){
 	}
 	palavraprd = strtok_r(argumentos[2], "PR=", &saveptr2);
 	strcpy(cmm->com, argumentos[1]);
-	sscanf(palavraprd, "%d", &cmm->prioridade);
 	write(p[1], cmm, sizeof(Comando));
 	#ifdef DEBUG
-	printf("Escrito comando %s prioridade %d\n", cmm->com, cmm->prioridade);
+	printf("Escrito comando %s\n", cmm->com);
 	#endif
 
 }
@@ -156,7 +159,7 @@ void childHandler(void){
 		Executa todo elemento da fila pelo menos uma vez*/
 		/*pega o primeiro elemento da fila sempre*/
 		for(i=0;i<pFila->contador;i++){/*Agora tem a qtd total de elementos na fila*/
-			flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer,);
+			flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer);
 			if(flagFila!=-1){
 				pidBuffer=fork();/*cria um processo pai e filho para o pai controlar o filho*/
 				if(pidBuffer==0){/*eh filho, inicia o pocesso*/
@@ -176,7 +179,7 @@ void childHandler(void){
 						PROCESSOS_FINALIZADOS=PROCESSOS_FINALIZADOS+1;
 					}
 					else{
-						kill(aux->pid, SIGSTOP);// para o processo
+						kill(pidBuffer, SIGSTOP);// para o processo
 				/*se nao acabou,coloca no final*/
 						insereFilaPid(pidBuffer)
 					}// fim else
@@ -192,18 +195,18 @@ void childHandler(void){
 	
 	while(PROCESSOS_FINALIZADOS<pFila->contador){
 		flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer);// tira primeiro elemento da fila
-		kill(aux->pid, SIGCONT);
+		kill(pidBuffer, SIGCONT);
 		sleep(QUANTUM);
 		int status;
 		int wpid = waitpid(pidBuffer, &status, WNOHANG);/*analisa o status do filho*/
 		if(wpid && WIFEXITED(status) && (WEXITSTATUS(status) == 0)){/*SE O FILHO ACABOU, ACABOU TBM*/
-			printf("FIM-Processo %s finalizado \n", aux->comandodoprograma);
-			kill(aux->pid, SIGKILL);// termina o processo
-			printf("FIM-Dentro dos finalizados, passa para o proximo = %s\n", aux->comandodoprograma);
+			printf("FIM-Processo %s finalizado \n", cmdBuffer);
+			kill(pidBuffer, SIGKILL);// termina o processo
+			printf("FIM-Dentro dos finalizados, passa para o proximo = %s\n", cmdBuffer);
 			PROCESSOS_FINALIZADOS=PROCESSOS_FINALIZADOS+1;
 		}
 		else{
-			printf("interrompendo o processo %s \n", aux->comandodoprograma);	
+			printf("interrompendo o processo %s \n", cmdBuffer);	
 			kill(pidBuffer, SIGSTOP);// para o processo
 			/*se nao acabou, tira e passa pro final*/
 			insereFilaPid(pidBuffer);

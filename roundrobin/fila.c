@@ -13,7 +13,6 @@
 
 #include "fila.h"
 #define DEBUG 0
-#define QUANTUM 1
 
 union cmdpid {
 	pid_t processo;
@@ -32,9 +31,6 @@ struct fila {
 	struct no * primeiro;
 	int contador;
 };
-
-
-Fila *pFila;
 
 
 void inicializaFila(void){

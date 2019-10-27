@@ -24,19 +24,122 @@
 #define DEBUG 1
 #define NUM_PALAVRAS_ESPERADO 2
 #define QUANTUM 1
-int PROCESSOS_FINALIZADOS = 0;
+
 
 
 typedef struct comando {
 	char com[255];
 } Comando;
 
+union cmdpid {
+	pid_t processo;
+	char * comando;
+};
+
+struct no {
+	Cmdpid * cp;
+	int tipoCmdPid;
+	int pid;
+	char * comandodoprograma;
+	int status;
+	struct no * prox;
+};
+struct fila {
+	struct no * primeiro;
+	int contador;
+};
+
+
 int p[2];
+int PROCESSOS_FINALIZADOS = 0;
 pid_t executando;
 
 
 Fila *pFila;
 
+
+
+
+void inicializaFila(void){
+	pFila = malloc(sizeof(Fila));
+	pFila->primeiro = NULL;
+	pFila->contador = 0;
+}
+
+static void insereFila( Cmdpid * cp, int tipocp){
+	No *novo = (No *) malloc(sizeof(No));	
+	novo->cp = cp;
+	novo->tipoCmdPid = tipocp;
+	novo->prox=NULL;
+	novo->status = 0;
+	novo->pid = 0;
+
+	if(pFila == NULL) inicializaFila();
+	
+	if(pFila->primeiro == NULL){
+		pFila->primeiro = novo;
+		novo->prox = NULL;
+	}
+	else{/*Insere sempre no fim da fila*/
+		No *paux, *paux2;
+		paux = pFila->primeiro;
+		paux2 = NULL;
+		while(paux != NULL){
+			paux2 = paux;
+			paux = paux->prox;
+		}
+		novo->prox = NULL;
+		paux2->prox = novo;	
+	}
+	pFila->contador = pFila->contador + 1;
+}
+
+void insereFilaCmd(char*comando){
+	Cmdpid *cp;
+	char * cmm;
+	cp=(Cmdpid*)malloc(sizeof(Cmdpid));
+	cmm=(char*)malloc(255*sizeof(char));
+	strcpy(cmm, comando);
+	cp->comando=cmm;
+	insereFila(cp,0);
+}
+
+void insereFilaPid(pid_t pid){
+	Cmdpid * cp;
+	cp=(Cmdpid*)malloc(sizeof(Cmdpid));
+	cp->processo=pid;
+	insereFila(cp,1);
+}
+
+
+
+
+int retiraPrimeiro(char*comando,pid_t*pid){
+	No*primeiro;
+	Cmdpid* cp;
+	int tipo;
+	if(pFila==NULL) return -1;
+	if(pFila->primeiro==NULL) return -1;
+	primeiro=pFila->primeiro;
+	cp=primeiro->cp;
+	tipo=primeiro->tipoCmdPid;
+	pFila->primeiro=pFila->primeiro->prox;
+	free(primeiro);
+	pFila->contador--;
+	if(tipo==0){
+		strcpy(comando, cp->comando);
+		return 0;
+	}
+	else{
+		*pid=cp->processo;
+		return 1;
+	}
+}
+
+void esvaziaFila(void){
+	free(pFila);
+	pFila = NULL;
+}
 
 void interpretaComandos(char * linha){
 	char * palavra;
@@ -181,7 +284,7 @@ void childHandler(void){
 					else{
 						kill(pidBuffer, SIGSTOP);// para o processo
 				/*se nao acabou,coloca no final*/
-						insereFilaPid(pidBuffer)
+						insereFilaPid(pidBuffer);
 					}// fim else
 				}//fim pai
 				else{
@@ -230,7 +333,8 @@ void parentHandler(FILE *fp, pid_t escl){
 		kill(escl, SIGCONT);
 		sleep(1); /* Enunciado: O interpretador irá ler de exec.txt quais são os programas a serem executados, e deverá iniciá-los exatamente na ordem em que aparecem nesse arquivo, com um intervalo de 1 segundo entre cada um deles */
 	}
-	
+	free(linha);
+	}
 
 
 

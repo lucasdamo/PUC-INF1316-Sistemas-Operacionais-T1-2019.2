@@ -16,24 +16,25 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include "fila.h"
 #define DEBUG 0
 
-typedef union cmdpid {
+union cmdpid {
 	pid_t processo;
 	char * comando;
-} Cmdpid;
+};
 
 
-typedef struct no {
+struct no {
 	Cmdpid * cp;
 	int tipoCmdPid; // 0 Se for comando e 1 se for Pid
 	struct no * prox;
-} No;
+};
 
-typedef struct fila {
+struct fila {
 	struct no * primeiro;
 	int contador;
-} Fila;
+};
 
 Fila *pFila;
 

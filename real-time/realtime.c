@@ -109,6 +109,10 @@ void interpretaComandos(char * linha, int idConta){
 	prog->id = idConta;
 	semaforoP(semId);
 	flagVOcupado = -1;
+	if(prog->inicio + prog->duracao >= 60){
+		fprintf(stderr, "Tempo de inicio + duracao >= 60!\n");
+		exit(EXIT_FAILURE);	
+	}
 	for(i = prog->inicio; i < (prog->inicio + prog->duracao); i++){
 		if( p[i].id != 0 ) {
 			flagVOcupado = i;

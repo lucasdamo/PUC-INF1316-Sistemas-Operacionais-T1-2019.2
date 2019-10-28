@@ -21,7 +21,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
-#include "../fila/fila.h"
+#include "./fila/fila.h"
 #define DEBUG 1
 #define NUM_PALAVRAS_ESPERADO 3 // Numero de palavras esperado em cada linha do arquivo txt inputado
 #define TRUE 1

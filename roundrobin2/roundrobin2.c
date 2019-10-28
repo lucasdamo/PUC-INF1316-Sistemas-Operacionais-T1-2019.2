@@ -58,17 +58,12 @@ void interpretaComandos(char * linha){
 	}
 	strcpy(cmm->com, argumentos[1]);
 	write(p[1], cmm, sizeof(Comando));
-	#ifdef DEBUG
-	printf("Escrito comando %s\n", cmm->com);
-	#endif
-
 }
 
 void signusr1_handler(int sig){
 	Comando * buff;
 	int nBytes;
 	buff = (Comando *)malloc(sizeof(Comando));
-	printf("Signal received %d\n", sig);
 	nBytes = read(p[0], buff, sizeof(Comando));
 	printf("Comando %s recebido\n", buff->com);
 	insereFilaCmd(buff->com);
@@ -117,13 +112,25 @@ void childHandler(){
 		printf("Executando %d\n", executando);
 		// Retira primeiro da fila e espera
 		flagFila = retiraPrimeiro(cmdBuffer, &pidBuffer);
+		status = -1;
 		if(flagFila != -1){
 			// Foi retirado um nó da fila
 			// Necessario mudar o processo sendo executado
 			if (executando != 0){
-				printf("Parando processo %d\n", executando);
-				pausaProcesso(executando);
-				insereFilaPid(executando);
+				waitpid(executando, &status, WNOHANG);
+				if( WIFEXITED(status) ){
+					#ifdef DEBUG
+					printf("Processo terminou %d\n", executando);
+					#endif
+					executando = 0;
+				}
+				else{
+					#ifdef DEBUG
+					printf("Processo nao terminou %d Parando-o\n", executando);
+					#endif
+					pausaProcesso(executando);
+					insereFilaPid(executando);
+				}
 			}
 			if(flagFila == 0){
 				// Comando recebido, iniciar novo processo
@@ -137,10 +144,20 @@ void childHandler(){
 				executando = pidBuffer;
 			}	
 		}
-		// else{
-		// 	printf("Fim da fila e dos comandos... Saindo do programa\n");
-		// 	return;
-		// }
+		else{
+			waitpid(executando, &status, WNOHANG);
+			if( WIFEXITED(status) ){
+				#ifdef DEBUG
+				printf("Processo terminou %d e não há mais processos na fila!\n", executando);
+				#endif
+				executando = 0;
+			}
+			else {
+				#ifdef DEBUG
+				printf("Não há nenhum outro processo na fila, continuando a execução do %d!\n", executando);
+				#endif
+			}
+		}
 		sleep(1);
 	}
 }

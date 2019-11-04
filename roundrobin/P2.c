@@ -11,7 +11,7 @@ int main(void){
 
 	for(i=1; i < 5; i++){
 		printf("P2 (pid = %d) Executando loop %d/4\n", getpid(), i);
-		sleep(1);
+		sleep(2);
 	}
 	
 	return 0;
